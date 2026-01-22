@@ -33,8 +33,8 @@ jobs:
           name: snrgy-recorder-windows
           path: snrgy-recorder-windows.exe
 
-  build-macos:
-    runs-on: macos-latest
+  build-macos-intel:
+    runs-on: macos-13  # Intel runner
     steps:
       - uses: actions/checkout@v4
 
@@ -46,13 +46,32 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      - name: Build macOS (Intel)
+      - name: Build macOS Intel
         run: |
-          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o snrgy-recorder-mac-intel .
+          CGO_ENABLED=1 go build -ldflags="-s -w" -o snrgy-recorder-mac-intel .
 
-      - name: Build macOS (Apple Silicon)
+      - name: Upload Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snrgy-recorder-macos-intel
+          path: snrgy-recorder-mac-intel
+
+  build-macos-arm:
+    runs-on: macos-latest  # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build macOS Apple Silicon
         run: |
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o snrgy-recorder-mac-arm .
+          CGO_ENABLED=1 go build -ldflags="-s -w" -o snrgy-recorder-mac-arm .
 
       - name: Create macOS App Bundle
         run: |
@@ -89,17 +108,16 @@ jobs:
 
           zip -r snrgy-recorder-mac.zip "SNRGY Recorder.app"
 
-      - name: Upload macOS artifacts
+      - name: Upload ARM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: snrgy-recorder-macos
+          name: snrgy-recorder-macos-arm
           path: |
-            snrgy-recorder-mac-intel
             snrgy-recorder-mac-arm
             snrgy-recorder-mac.zip
 
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos-intel, build-macos-arm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -121,7 +139,7 @@ jobs:
           prerelease: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
           files: |
             artifacts/snrgy-recorder-windows/snrgy-recorder-windows.exe
-            artifacts/snrgy-recorder-macos/snrgy-recorder-mac.zip
-            artifacts/snrgy-recorder-macos/snrgy-recorder-mac-intel
-            artifacts/snrgy-recorder-macos/snrgy-recorder-mac-arm
+            artifacts/snrgy-recorder-macos-arm/snrgy-recorder-mac.zip
+            artifacts/snrgy-recorder-macos-arm/snrgy-recorder-mac-arm
+            artifacts/snrgy-recorder-macos-intel/snrgy-recorder-mac-intel
           generate_release_notes: true
