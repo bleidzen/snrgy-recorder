@@ -34,31 +34,6 @@ jobs:
           name: snrgy-recorder-windows
           path: snrgy-recorder-windows.exe
 
-  build-macos-intel:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          cache: true
-
-      - name: Install macOS dependencies
-        run: brew install pkg-config
-
-      - name: Build macOS Intel
-        run: |
-          go mod tidy
-          CGO_ENABLED=1 go build -ldflags="-s -w" -o snrgy-recorder-mac-intel .
-
-      - name: Upload Intel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snrgy-recorder-macos-intel
-          path: snrgy-recorder-mac-intel
-
   build-macos-arm:
     runs-on: macos-14
     steps:
@@ -120,7 +95,7 @@ jobs:
             snrgy-recorder-mac.zip
 
   release:
-    needs: [build-windows, build-macos-intel, build-macos-arm]
+    needs: [build-windows, build-macos-arm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -144,5 +119,4 @@ jobs:
             artifacts/snrgy-recorder-windows/snrgy-recorder-windows.exe
             artifacts/snrgy-recorder-macos-arm/snrgy-recorder-mac.zip
             artifacts/snrgy-recorder-macos-arm/snrgy-recorder-mac-arm
-            artifacts/snrgy-recorder-macos-intel/snrgy-recorder-mac-intel
           generate_release_notes: true
