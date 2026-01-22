@@ -44,8 +44,7 @@ jobs:
           go-version: '1.21'
 
       - name: Install macOS dependencies
-        run: |
-          brew install pkg-config
+        run: brew install pkg-config
 
       - name: Build macOS Intel
         run: |
@@ -69,8 +68,7 @@ jobs:
           go-version: '1.21'
 
       - name: Install macOS dependencies
-        run: |
-          brew install pkg-config
+        run: brew install pkg-config
 
       - name: Build macOS Apple Silicon
         run: |
@@ -82,7 +80,6 @@ jobs:
           mkdir -p "SNRGY Recorder.app/Contents/MacOS"
           mkdir -p "SNRGY Recorder.app/Contents/Resources"
           cp snrgy-recorder-mac-arm "SNRGY Recorder.app/Contents/MacOS/snrgy-recorder"
-
           cat > "SNRGY Recorder.app/Contents/Info.plist" << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -109,7 +106,6 @@ jobs:
           </dict>
           </plist>
           EOF
-
           zip -r snrgy-recorder-mac.zip "SNRGY Recorder.app"
 
       - name: Upload ARM artifacts
@@ -137,10 +133,10 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name == 'main' || github.ref_name == 'master' ? 'latest' : github.ref_name }}
-          name: ${{ github.ref_name == 'main' || github.ref_name == 'master' ? 'Latest Build' : github.ref_name }}
+          tag_name: latest
+          name: Latest Build
           draft: false
-          prerelease: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+          prerelease: true
           files: |
             artifacts/snrgy-recorder-windows/snrgy-recorder-windows.exe
             artifacts/snrgy-recorder-macos-arm/snrgy-recorder-mac.zip
