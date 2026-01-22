@@ -23,7 +23,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/gen2brain/malgo"
-	"github.com/getlantern/systray"
 	"golang.design/x/hotkey"
 )
 
@@ -115,21 +114,19 @@ func (t *SNRGYTheme) Size(name fyne.ThemeSizeName) float32 {
 }
 
 var (
-	config        Config
-	recording     = false
-	recordingMu   sync.Mutex
-	stopChan      chan struct{}
-	menuStart     *systray.MenuItem
-	menuStop      *systray.MenuItem
-	logList       *widget.List
-	logMessages   []logEntry
-	logMu         sync.Mutex
-	statusLabel   *widget.Label
-	statusDot     *canvas.Circle
-	fyneApp       fyne.App
-	mainWindow    fyne.Window
-	recordBtn     *widget.Button
-	stopBtn       *widget.Button
+	config      Config
+	recording   = false
+	recordingMu sync.Mutex
+	stopChan    chan struct{}
+	logList     *widget.List
+	logMessages []logEntry
+	logMu       sync.Mutex
+	statusLabel *widget.Label
+	statusDot   *canvas.Circle
+	fyneApp     fyne.App
+	mainWindow  fyne.Window
+	recordBtn   *widget.Button
+	stopBtn     *widget.Button
 )
 
 type logEntry struct {
@@ -156,10 +153,10 @@ func main() {
 	mainWindow.CenterOnScreen()
 	mainWindow.SetIcon(appIcon)
 
-	// Start systray in background
+	// Start systray in background (Windows only, skipped on macOS due to library conflicts)
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		systray.Run(onSystrayReady, onSystrayExit)
+		initSystray()
 	}()
 
 	mainWindow.SetCloseIntercept(func() {
@@ -373,42 +370,6 @@ func saveConfig() {
 	os.WriteFile(getConfigPath(), data, 0644)
 }
 
-func onSystrayReady() {
-	systray.SetIcon(getIcon())
-	systray.SetTitle("SNRGY")
-	systray.SetTooltip("SNRGY Recorder")
-
-	menuStart = systray.AddMenuItem("Start Recording", "Start recording audio")
-	menuStop = systray.AddMenuItem("Stop Recording", "Stop recording audio")
-	menuStop.Disable()
-
-	systray.AddSeparator()
-	menuShow := systray.AddMenuItem("Show Window", "Show the main window")
-	menuQuit := systray.AddMenuItem("Quit", "Quit the application")
-
-	go registerHotkeys()
-
-	go func() {
-		for {
-			select {
-			case <-menuStart.ClickedCh:
-				startRecording()
-			case <-menuStop.ClickedCh:
-				stopRecording()
-			case <-menuShow.ClickedCh:
-				mainWindow.Show()
-			case <-menuQuit.ClickedCh:
-				stopRecording()
-				fyneApp.Quit()
-			}
-		}
-	}()
-}
-
-func onSystrayExit() {
-	stopRecording()
-}
-
 func registerHotkeys() {
 	startMods, startKey := parseHotkey(config.StartHotkey)
 	if startKey != 0 {
@@ -490,16 +451,12 @@ func startRecording() {
 	stopChan = make(chan struct{})
 	recordingMu.Unlock()
 
-	if menuStart != nil {
-		menuStart.Disable()
-		menuStop.Enable()
-	}
+	updateSystrayRecordingStarted()
 	if recordBtn != nil {
 		recordBtn.Disable()
 		stopBtn.Enable()
 	}
 	setStatus("Recording", true)
-	systray.SetTooltip("SNRGY Recorder - Recording...")
 
 	addLog("Starting recording...", false)
 
@@ -531,16 +488,12 @@ func stopRecording() {
 	close(stopChan)
 	recordingMu.Unlock()
 
-	if menuStart != nil {
-		menuStart.Enable()
-		menuStop.Disable()
-	}
+	updateSystrayRecordingStopped()
 	if recordBtn != nil {
 		recordBtn.Enable()
 		stopBtn.Disable()
 	}
 	setStatus("Ready", false)
-	systray.SetTooltip("SNRGY Recorder")
 
 	_, err := apiRequest(map[string]interface{}{
 		"action": "stop",
