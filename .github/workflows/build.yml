@@ -1,0 +1,98 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: |
+          choco install mingw -y
+          go mod tidy
+
+      - name: Build Windows
+        run: |
+          $env:CGO_ENABLED = "1"
+          go build -ldflags="-H windowsgui -s -w" -o snrgy-recorder-windows.exe .
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snrgy-recorder-windows
+          path: snrgy-recorder-windows.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build macOS (Intel)
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o snrgy-recorder-mac-intel .
+
+      - name: Build macOS (Apple Silicon)
+        run: |
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o snrgy-recorder-mac-arm .
+
+      - name: Create macOS App Bundle
+        run: |
+          mkdir -p "SNRGY Recorder.app/Contents/MacOS"
+          mkdir -p "SNRGY Recorder.app/Contents/Resources"
+          cp snrgy-recorder-mac-arm "SNRGY Recorder.app/Contents/MacOS/snrgy-recorder"
+
+          cat > "SNRGY Recorder.app/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>snrgy-recorder</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.snrgy.recorder</string>
+              <key>CFBundleName</key>
+              <string>SNRGY Recorder</string>
+              <key>CFBundleVersion</key>
+              <string>1.0.0</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+              <key>LSUIElement</key>
+              <true/>
+              <key>NSMicrophoneUsageDescription</key>
+              <string>SNRGY Recorder needs microphone access to record audio.</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+          zip -r snrgy-recorder-mac.zip "SNRGY Recorder.app"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: snrgy-recorder-macos
+          path: |
+            snrgy-recorder-mac-intel
+            snrgy-recorder-mac-arm
+            snrgy-recorder-mac.zip
