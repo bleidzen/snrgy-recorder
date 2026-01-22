@@ -1,9 +1,10 @@
-name: Build
+name: Build and Release
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:  # Allow manual trigger
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build-windows:
@@ -96,3 +97,31 @@ jobs:
             snrgy-recorder-mac-intel
             snrgy-recorder-mac-arm
             snrgy-recorder-mac.zip
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name == 'main' || github.ref_name == 'master' ? 'latest' : github.ref_name }}
+          name: ${{ github.ref_name == 'main' || github.ref_name == 'master' ? 'Latest Build' : github.ref_name }}
+          draft: false
+          prerelease: ${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+          files: |
+            artifacts/snrgy-recorder-windows/snrgy-recorder-windows.exe
+            artifacts/snrgy-recorder-macos/snrgy-recorder-mac.zip
+            artifacts/snrgy-recorder-macos/snrgy-recorder-mac-intel
+            artifacts/snrgy-recorder-macos/snrgy-recorder-mac-arm
+          generate_release_notes: true
