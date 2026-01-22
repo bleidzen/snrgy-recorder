@@ -451,13 +451,7 @@ func parseHotkey(s string) ([]hotkey.Modifier, hotkey.Key) {
 			mods = append(mods, hotkey.ModCtrl)
 		case "Shift":
 			mods = append(mods, hotkey.ModShift)
-		case "Alt", "Option":
-			// Alt on Windows/Linux, Option on macOS - both use the same underlying key
-			if runtime.GOOS == "darwin" {
-				mods = append(mods, hotkey.ModOption)
-			} else {
-				mods = append(mods, hotkey.ModAlt)
-			}
+		// Note: Alt/Option not supported - use Ctrl+Shift combinations
 		default:
 			if len(p) == 1 {
 				key = hotkey.Key(p[0])
